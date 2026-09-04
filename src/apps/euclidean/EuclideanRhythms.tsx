@@ -1,3 +1,6 @@
+"use client"
+
+import Link from "next/link"
 import { useState } from "react"
 
 // there are more than these, but these are the most common
@@ -37,12 +40,12 @@ function EuclideanRhythms() {
           <select
             id="timeSignatureLower"
             name="timeSignatureLower"
-            defaultValue={timeSignatureLower}
+            value={timeSignatureLower}
             onChange={(e) => setTimeSignatureLower(parseInt(e.target.value))}
             >
             ({timeSignatureLowerOptions.map(optionSize => 
               <option
-                id={`timeSignatureLower${optionSize}`}
+                key={optionSize}
                 value={optionSize}
                 >{optionSize}</option>
             )})
@@ -64,7 +67,7 @@ function EuclideanRhythms() {
         </div>
         <div className="py-8">
           <p className="py-2">
-            <a href="/">Home</a>
+            <Link href="/">Home</Link>
           </p>
         </div>
       </div>
