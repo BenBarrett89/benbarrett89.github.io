@@ -4,6 +4,7 @@ import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
 import "@/styles/globals.css";
 import { cx } from "@/utils/cx";
+import { HeaderNavigationBase } from "./components/navigation/header-navigation";
 
 const inter = Inter({
     subsets: ["latin"],
@@ -21,6 +22,11 @@ export const viewport: Viewport = {
     colorScheme: "light dark",
 };
 
+const headerNavigationItems = [
+    { label: "Home", href: "/" },
+    { label: "Fateforge", href: "/fateforge" },
+];
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -30,7 +36,10 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <body className={cx(inter.variable, "bg-primary antialiased")}>
                 <RouteProvider>
-                    <Theme>{children}</Theme>
+                    <Theme>
+                        <HeaderNavigationBase actions={[]} items={headerNavigationItems} />
+                        {children}
+                    </Theme>
                 </RouteProvider>
             </body>
         </html>
