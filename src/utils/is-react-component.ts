@@ -1,38 +1,33 @@
-import type React from "react"
+/* We cannot use type `unknown` instead of `any` here because it will break the type assertion `isReactComponent` function is providing. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type React from "react";
 
-type ReactComponent =
-  | React.ElementType
-  | React.ForwardRefExoticComponent<React.RefAttributes<unknown>>
+type ReactComponent = React.FC<any> | React.ComponentClass<any, any>;
 
-export const isFunctionComponent = (component: unknown): component is React.FC =>
-  typeof component === "function"
+/**
+ * Checks if a given value is a function component.
+ */
+export const isFunctionComponent = (component: any): component is React.FC<any> => {
+    return typeof component === "function";
+};
 
-export const isClassComponent = (
-  component: unknown,
-): component is React.ComponentClass => {
-  if (typeof component !== "function") {
-    return false
-  }
+/**
+ * Checks if a given value is a class component.
+ */
+export const isClassComponent = (component: any): component is React.ComponentClass<any, any> => {
+    return typeof component === "function" && component.prototype && (!!component.prototype.isReactComponent || !!component.prototype.render);
+};
 
-  const prototype = component.prototype as {
-    isReactComponent?: boolean
-    render?: unknown
-  }
-  return !!prototype && (!!prototype.isReactComponent || !!prototype.render)
-}
+/**
+ * Checks if a given value is a forward ref component.
+ */
+export const isForwardRefComponent = (component: any): component is React.ForwardRefExoticComponent<any> => {
+    return typeof component === "object" && component !== null && component.$$typeof.toString() === "Symbol(react.forward_ref)";
+};
 
-export const isForwardRefComponent = (
-  component: unknown,
-): component is React.ForwardRefExoticComponent<React.RefAttributes<unknown>> => {
-  if (typeof component !== "object" || component === null) {
-    return false
-  }
-
-  const symbol = (component as { $$typeof?: unknown }).$$typeof
-  return typeof symbol === "symbol" && symbol.toString() === "Symbol(react.forward_ref)"
-}
-
-export const isReactComponent = (component: unknown): component is ReactComponent =>
-  isFunctionComponent(component) ||
-  isForwardRefComponent(component) ||
-  isClassComponent(component)
+/**
+ * Checks if a given value is a valid React component.
+ */
+export const isReactComponent = (component: any): component is ReactComponent => {
+    return isFunctionComponent(component) || isForwardRefComponent(component) || isClassComponent(component);
+};
