@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { SpotifyAuthProvider } from "@/providers/auth-provider";
 import { RouteProvider } from "@/providers/router-provider";
 import { Theme } from "@/providers/theme";
 import "@/styles/globals.css";
@@ -30,7 +31,9 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <body className={cx(inter.variable, "bg-primary antialiased")}>
                 <RouteProvider>
-                    <Theme>{children}</Theme>
+                    <Theme>
+                        <SpotifyAuthProvider>{children}</SpotifyAuthProvider>
+                    </Theme>
                 </RouteProvider>
             </body>
         </html>
