@@ -145,7 +145,7 @@ export default function SpotifyPage() {
                                             />
                                         ) : (
                                             <div className="flex size-24 items-center justify-center rounded-full border border-secondary bg-primary text-lg font-semibold text-primary">
-                                                {profile.display_name.slice(0, 1)}
+                                                {(profile.display_name ?? profile.id).slice(0, 1)}
                                             </div>
                                         )}
 
