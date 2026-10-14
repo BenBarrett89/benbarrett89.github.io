@@ -58,6 +58,11 @@ export default function SpotifyPage() {
                     signal: abortController.signal,
                 });
 
+                if (response.status === 401) {
+                    logout();
+                    return;
+                }
+
                 const data = (await response.json()) as SpotifyUserProfile & { error?: { message?: string } };
 
                 if (!response.ok) {
