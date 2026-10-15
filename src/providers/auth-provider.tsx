@@ -11,7 +11,6 @@ import {
     getStoredSpotifyAccessToken,
     getStoredSpotifyCodeVerifier,
     getStoredSpotifyRefreshToken,
-    storeSpotifyCodeVerifier,
     storeSpotifyCodeVerifierCookie,
     storeSpotifyTokens,
 } from "@/utils/spotify-auth";
@@ -70,13 +69,11 @@ export const SpotifyAuthProvider = ({ children }: { children: ReactNode }) => {
 
         try {
             const codeVerifier = getStoredSpotifyCodeVerifier();
+            clearStoredSpotifyCodeVerifierCookie();
 
             if (!codeVerifier) {
                 throw new Error("Missing Spotify PKCE code verifier. Start the login flow again.");
             }
-
-            storeSpotifyCodeVerifier(codeVerifier);
-            clearStoredSpotifyCodeVerifierCookie();
 
             const config = getSpotifyConfig();
             const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
