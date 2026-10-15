@@ -59,13 +59,6 @@ export const getStoredSpotifyCodeVerifier = (): string | null => {
         return null;
     }
 
-    // try and get from local storage first
-    const localStorageValue = window.localStorage.getItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY);
-    if (localStorageValue) {
-        return localStorageValue;
-    }
-
-    // fallback to cookies if not found in local storage
     const prefix = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=`;
     const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith(prefix));
 
@@ -80,10 +73,6 @@ export const storeSpotifyCodeVerifierCookie = (codeVerifier: string): void => {
 
 export const clearStoredSpotifyCodeVerifierCookie = (): void => {
     document.cookie = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
-};
-
-export const storeSpotifyCodeVerifier = (codeVerifier: string): void => {
-    window.localStorage.setItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY, codeVerifier);
 };
 
 export const storeSpotifyTokens = (tokens: SpotifyTokenResponse): void => {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Button } from "@/components/base/buttons/button";
+import { useSpotifyApi } from "@/hooks/use-spotify-api";
 import { useSpotifyAuth } from "@/providers/auth-provider";
 
 interface SpotifyImage {
@@ -32,61 +32,7 @@ interface SpotifyUserProfile {
 
 export default function SpotifyPage() {
     const { accessToken, error, isLoading, login, logout } = useSpotifyAuth();
-    const [profile, setProfile] = useState<SpotifyUserProfile | null>(null);
-    const [profileError, setProfileError] = useState<string | null>(null);
-    const [isProfileLoading, setIsProfileLoading] = useState(false);
-
-    useEffect(() => {
-        if (!accessToken) {
-            setProfile(null);
-            setProfileError(null);
-            setIsProfileLoading(false);
-            return;
-        }
-
-        const abortController = new AbortController();
-
-        const loadProfile = async () => {
-            setIsProfileLoading(true);
-            setProfileError(null);
-
-            try {
-                const response = await fetch("https://api.spotify.com/v1/me", {
-                    headers: {
-                        Authorization: `Bearer ${accessToken}`,
-                    },
-                    signal: abortController.signal,
-                });
-
-                if (response.status === 401) {
-                    logout();
-                    return;
-                }
-
-                const data = (await response.json()) as SpotifyUserProfile & { error?: { message?: string } };
-
-                if (!response.ok) {
-                    throw new Error(data.error?.message ?? "Failed to load Spotify profile.");
-                }
-
-                setProfile(data);
-            } catch (cause) {
-                if (abortController.signal.aborted) {
-                    return;
-                }
-
-                setProfileError(cause instanceof Error ? cause.message : "Failed to load Spotify profile.");
-            } finally {
-                if (!abortController.signal.aborted) {
-                    setIsProfileLoading(false);
-                }
-            }
-        };
-
-        void loadProfile();
-
-        return () => abortController.abort();
-    }, [accessToken]);
+    const { data: profile, error: profileError, isLoading: isProfileLoading } = useSpotifyApi<SpotifyUserProfile>("/me");
 
     const avatarUrl = profile?.images[0]?.url;
 
@@ -178,6 +124,18 @@ export default function SpotifyPage() {
                                     </dl>
                                 </div>
                             ) : null}
+
+                            <div className="space-y-4 rounded-xl border border-secondary bg-secondary px-6 py-6">
+                                <div className="space-y-1">
+                                    <h2 className="text-md font-semibold text-primary">Placeholder section</h2>
+                                    <p className="text-sm text-tertiary">Placeholder actions for upcoming Spotify features.</p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <Button color="primary" href="/spotify/scripts/handle-release-radar">
+                                        Handle release radar
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
