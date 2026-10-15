@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/base/buttons/button";
 import { Input } from "@/components/base/input/input";
+import { useHandleReleaseRadar } from "@/hooks/use-handle-release-radar";
 import { useSpotifyPlaylist } from "@/hooks/use-spotify-playlist";
 import { useSpotifyAuth } from "@/providers/auth-provider";
 import { parseSpotifyPlaylistId } from "@/utils/spotify-playlist";
@@ -12,6 +13,7 @@ export default function HandleReleaseRadarPage() {
     const [playlistInput, setPlaylistInput] = useState("");
     const [submittedPlaylistId, setSubmittedPlaylistId] = useState<string | null>(null);
     const { data: playlist, error: playlistError, isLoading: isPlaylistLoading } = useSpotifyPlaylist(submittedPlaylistId);
+    const { run: runScript, isRunning, error: scriptError, result: scriptResult, tracks } = useHandleReleaseRadar();
     const playlistId = parseSpotifyPlaylistId(playlistInput);
     const isPlaylistInvalid = playlistInput.trim() !== "" && !playlistId;
     const playlistImageUrl = playlist?.images?.[0]?.url;
@@ -88,6 +90,30 @@ export default function HandleReleaseRadarPage() {
                                             Open in Spotify
                                         </a>
                                     </div>
+                                </div>
+                            )}
+
+                            {playlist && (
+                                <div className="flex flex-col gap-3">
+                                    <div>
+                                        <Button color="secondary" isDisabled={isRunning} isLoading={isRunning} onClick={() => void runScript(playlist)}>
+                                            Run script
+                                        </Button>
+                                    </div>
+                                    {scriptResult && <p className="text-sm text-success-primary">{scriptResult}</p>}
+                                    {scriptError && <p className="text-sm text-error-primary">{scriptError}</p>}
+                                    {tracks.length > 0 && (
+                                        <ul className="max-h-96 divide-y divide-secondary overflow-y-auto rounded-xl border border-secondary bg-primary">
+                                            {tracks.map((track, index) => (
+                                                <li key={`${track.uri}-${index}`} className="px-4 py-3">
+                                                    <p className="text-sm font-medium text-primary">{track.name}</p>
+                                                    <p className="text-sm text-tertiary">
+                                                        {track.artists.map((artist) => artist.name).join(", ")} · {track.album.name}
+                                                    </p>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
                                 </div>
                             )}
                         </>
