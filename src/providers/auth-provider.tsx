@@ -5,13 +5,14 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
     type SpotifyTokenResponse,
     clearSpotifyTokens,
-    clearStoredSpotifyCodeVerifier,
+    clearStoredSpotifyCodeVerifierCookie,
     generatePKCE,
     getSpotifyConfig,
     getStoredSpotifyAccessToken,
     getStoredSpotifyCodeVerifier,
     getStoredSpotifyRefreshToken,
     storeSpotifyCodeVerifier,
+    storeSpotifyCodeVerifierCookie,
     storeSpotifyTokens,
 } from "@/utils/spotify-auth";
 
@@ -47,7 +48,7 @@ export const SpotifyAuthProvider = ({ children }: { children: ReactNode }) => {
             const config = getSpotifyConfig();
             const authUrl = new URL("https://accounts.spotify.com/authorize");
 
-            storeSpotifyCodeVerifier(codeVerifier);
+            storeSpotifyCodeVerifierCookie(codeVerifier);
 
             authUrl.searchParams.set("client_id", config.clientId);
             authUrl.searchParams.set("response_type", "code");
@@ -74,6 +75,9 @@ export const SpotifyAuthProvider = ({ children }: { children: ReactNode }) => {
                 throw new Error("Missing Spotify PKCE code verifier. Start the login flow again.");
             }
 
+            storeSpotifyCodeVerifier(codeVerifier);
+            clearStoredSpotifyCodeVerifierCookie();
+
             const config = getSpotifyConfig();
             const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
                 method: "POST",
@@ -96,7 +100,6 @@ export const SpotifyAuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             storeSpotifyTokens(tokens);
-            clearStoredSpotifyCodeVerifier();
             setAccessToken(tokens.access_token);
             setRefreshToken(tokens.refresh_token ?? null);
         } catch (cause) {
