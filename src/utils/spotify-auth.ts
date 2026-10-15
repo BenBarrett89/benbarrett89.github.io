@@ -59,20 +59,31 @@ export const getStoredSpotifyCodeVerifier = (): string | null => {
         return null;
     }
 
+    // try and get from local storage first
+    const localStorageValue = window.localStorage.getItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY);
+    if (localStorageValue) {
+        return localStorageValue;
+    }
+
+    // fallback to cookies if not found in local storage
     const prefix = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=`;
     const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith(prefix));
 
     return entry ? decodeURIComponent(entry.slice(prefix.length)) : null;
 };
 
-export const storeSpotifyCodeVerifier = (codeVerifier: string): void => {
+export const storeSpotifyCodeVerifierCookie = (codeVerifier: string): void => {
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
 
     document.cookie = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=${encodeURIComponent(codeVerifier)}; Path=/; Max-Age=600; SameSite=Lax${secure}`;
 };
 
-export const clearStoredSpotifyCodeVerifier = (): void => {
+export const clearStoredSpotifyCodeVerifierCookie = (): void => {
     document.cookie = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+};
+
+export const storeSpotifyCodeVerifier = (codeVerifier: string): void => {
+    window.localStorage.setItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY, codeVerifier);
 };
 
 export const storeSpotifyTokens = (tokens: SpotifyTokenResponse): void => {
@@ -86,7 +97,8 @@ export const storeSpotifyTokens = (tokens: SpotifyTokenResponse): void => {
 export const clearSpotifyTokens = (): void => {
     window.localStorage.removeItem(SPOTIFY_ACCESS_TOKEN_STORAGE_KEY);
     window.localStorage.removeItem(SPOTIFY_REFRESH_TOKEN_STORAGE_KEY);
-    clearStoredSpotifyCodeVerifier();
+    window.localStorage.removeItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY);
+    clearStoredSpotifyCodeVerifierCookie(); // should have been cleared already, but just in case
 };
 
 const base64UrlEncode = (input: Uint8Array): string => {
