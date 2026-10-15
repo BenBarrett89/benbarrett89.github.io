@@ -59,15 +59,20 @@ export const getStoredSpotifyCodeVerifier = (): string | null => {
         return null;
     }
 
-    return window.localStorage.getItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY);
+    const prefix = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=`;
+    const entry = document.cookie.split("; ").find((cookie) => cookie.startsWith(prefix));
+
+    return entry ? decodeURIComponent(entry.slice(prefix.length)) : null;
 };
 
 export const storeSpotifyCodeVerifier = (codeVerifier: string): void => {
-    window.localStorage.setItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY, codeVerifier);
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+
+    document.cookie = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=${encodeURIComponent(codeVerifier)}; Path=/; Max-Age=600; SameSite=Lax${secure}`;
 };
 
 export const clearStoredSpotifyCodeVerifier = (): void => {
-    window.localStorage.removeItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY);
+    document.cookie = `${SPOTIFY_CODE_VERIFIER_STORAGE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
 };
 
 export const storeSpotifyTokens = (tokens: SpotifyTokenResponse): void => {
@@ -81,7 +86,7 @@ export const storeSpotifyTokens = (tokens: SpotifyTokenResponse): void => {
 export const clearSpotifyTokens = (): void => {
     window.localStorage.removeItem(SPOTIFY_ACCESS_TOKEN_STORAGE_KEY);
     window.localStorage.removeItem(SPOTIFY_REFRESH_TOKEN_STORAGE_KEY);
-    window.localStorage.removeItem(SPOTIFY_CODE_VERIFIER_STORAGE_KEY);
+    clearStoredSpotifyCodeVerifier();
 };
 
 const base64UrlEncode = (input: Uint8Array): string => {
