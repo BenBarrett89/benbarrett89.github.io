@@ -131,9 +131,9 @@ export default function SpotifyPage() {
                                     <p className="text-sm text-tertiary">Placeholder actions for upcoming Spotify features.</p>
                                 </div>
                                 <div className="flex flex-wrap gap-3">
-                                    <Button color="primary">Primary action</Button>
-                                    <Button color="secondary">Secondary action</Button>
-                                    <Button color="tertiary">Tertiary action</Button>
+                                    <Button color="primary" href="/spotify/scripts/handle-release-radar">
+                                        Handle release radar
+                                    </Button>
                                 </div>
                             </div>
                         </div>

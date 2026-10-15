@@ -5,14 +5,14 @@ import { useSpotifyAuth } from "@/providers/auth-provider";
 
 const SPOTIFY_API_BASE_URL = "https://api.spotify.com/v1";
 
-export const useSpotifyApi = <T>(path: string) => {
+export const useSpotifyApi = <T>(path: string | null) => {
     const { accessToken, logout } = useSpotifyAuth();
     const [data, setData] = useState<T | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (!accessToken) {
+        if (!accessToken || !path) {
             setData(null);
             setError(null);
             setIsLoading(false);
