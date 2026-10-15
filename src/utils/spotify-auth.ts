@@ -26,7 +26,7 @@ export const getSpotifyConfig = (): SpotifyAuthConfig => {
     return {
         clientId,
         redirectUri: getSpotifyRedirectUri(),
-        scopes: ["user-read-email", "user-read-private"],
+        scopes: ["user-read-email", "user-read-private", "playlist-read-private"],
     };
 };
 
