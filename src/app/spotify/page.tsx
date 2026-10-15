@@ -124,6 +124,18 @@ export default function SpotifyPage() {
                                     </dl>
                                 </div>
                             ) : null}
+
+                            <div className="space-y-4 rounded-xl border border-secondary bg-secondary px-6 py-6">
+                                <div className="space-y-1">
+                                    <h2 className="text-md font-semibold text-primary">Placeholder section</h2>
+                                    <p className="text-sm text-tertiary">Placeholder actions for upcoming Spotify features.</p>
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <Button color="primary">Primary action</Button>
+                                    <Button color="secondary">Secondary action</Button>
+                                    <Button color="tertiary">Tertiary action</Button>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
