@@ -130,27 +130,30 @@ const expandToFullAlbums = async (sortedTracks: SpotifyTrack[], accessToken: str
     });
 };
 
-// Singles first (fewest tracks first), then albums, then compilations.
+// Singles first (fewest tracks first), then albums, then compilations; ties keep the original playlist order.
 const sortTracks = (tracks: SpotifyTrack[]): SpotifyTrack[] => {
-    return [...tracks].sort((a, b) => {
-        const typeA = a.album.album_type ?? "";
-        const typeB = b.album.album_type ?? "";
-        const byType = (ALBUM_TYPE_ORDER[typeA] ?? 3) - (ALBUM_TYPE_ORDER[typeB] ?? 3);
+    return tracks
+        .map((track, index) => ({ track, index }))
+        .sort((a, b) => {
+            const typeA = a.track.album.album_type ?? "";
+            const typeB = b.track.album.album_type ?? "";
+            const byType = (ALBUM_TYPE_ORDER[typeA] ?? 3) - (ALBUM_TYPE_ORDER[typeB] ?? 3);
 
-        if (byType !== 0) {
-            return byType;
-        }
-
-        if (typeA === "single") {
-            const byLength = (a.album.total_tracks ?? 0) - (b.album.total_tracks ?? 0);
-
-            if (byLength !== 0) {
-                return byLength;
+            if (byType !== 0) {
+                return byType;
             }
-        }
 
-        return (a.album.id ?? a.album.name).localeCompare(b.album.id ?? b.album.name);
-    });
+            if (typeA === "single") {
+                const byLength = (a.track.album.total_tracks ?? 0) - (b.track.album.total_tracks ?? 0);
+
+                if (byLength !== 0) {
+                    return byLength;
+                }
+            }
+
+            return a.index - b.index;
+        })
+        .map(({ track }) => track);
 };
 
 export const useHandleReleaseRadar = () => {
