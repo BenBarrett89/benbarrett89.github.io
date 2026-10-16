@@ -124,9 +124,6 @@ export default function HandleReleaseRadarPage() {
                                                         {track.album.total_tracks !== undefined &&
                                                             ` · ${track.album.album_type ?? "release"} (${track.album.total_tracks} ${track.album.total_tracks === 1 ? "track" : "tracks"})`}
                                                     </p>
-                                                    {track.genres && track.genres.length > 0 && (
-                                                        <p className="text-xs text-quaternary">{track.genres.join(", ")}</p>
-                                                    )}
                                                 </li>
                                             ))}
                                         </ul>
@@ -139,7 +136,6 @@ export default function HandleReleaseRadarPage() {
                                                     <Table.Head id="artists" label="Artists" />
                                                     <Table.Head id="album" label="Album" />
                                                     <Table.Head id="type" label="Type" />
-                                                    <Table.Head id="genres" label="Genres" />
                                                     <Table.Head id="inPlaylist" label="In playlist" />
                                                 </Table.Header>
                                                 <Table.Body items={expandedTracks.map((track, index) => ({ ...track, rowId: `${index}-${track.uri}` }))}>
@@ -155,7 +151,6 @@ export default function HandleReleaseRadarPage() {
                                                                 {track.albumType ?? "-"}
                                                                 {track.totalTracks !== undefined && ` (${track.totalTracks})`}
                                                             </Table.Cell>
-                                                            <Table.Cell>{track.genres.join(", ") || "-"}</Table.Cell>
                                                             <Table.Cell>{track.isInPlaylist ? "Yes" : "No"}</Table.Cell>
                                                         </Table.Row>
                                                     )}

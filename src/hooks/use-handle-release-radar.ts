@@ -10,11 +10,6 @@ export interface SpotifyTrack {
     uri: string;
     artists: { id: string | null; name: string }[];
     album: { id: string | null; name: string; release_date?: string; album_type?: string; total_tracks?: number };
-    genres?: string[];
-}
-
-interface SpotifyArtist {
-    genres?: string[];
 }
 
 export interface ExpandedTrack {
@@ -26,7 +21,6 @@ export interface ExpandedTrack {
     albumName: string;
     albumType?: string;
     totalTracks?: number;
-    genres: string[];
     isInPlaylist: boolean;
 }
 
@@ -36,7 +30,7 @@ interface AlbumTracksPage {
 }
 
 const ALBUM_TYPE_ORDER: Record<string, number> = { single: 0, album: 1, compilation: 2 };
-const ARTIST_FETCH_CONCURRENCY = 5;
+const ALBUM_FETCH_CONCURRENCY = 5;
 
 interface PlaylistItemsPage {
     items: { item?: SpotifyTrack | null; track?: SpotifyTrack | null }[];
@@ -46,50 +40,37 @@ interface PlaylistItemsPage {
 
 const PAGE_SIZE = 50;
 const ADD_ITEMS_MAX_URIS = 100;
+const MAX_RATE_LIMIT_RETRIES = 5;
 
-const fetchArtistGenres = async (artistIds: string[], accessToken: string): Promise<Map<string, string[]>> => {
-    const genres = new Map<string, string[]>();
+const fetchWithRetry = async (url: string, init: RequestInit): Promise<Response> => {
+    for (let attempt = 0; ; attempt++) {
+        const response = await fetch(url, init);
 
-    for (let start = 0; start < artistIds.length; start += ARTIST_FETCH_CONCURRENCY) {
-        await Promise.all(
-            artistIds.slice(start, start + ARTIST_FETCH_CONCURRENCY).map(async (artistId) => {
-                try {
-                    const response = await fetch(`https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}`, {
-                        headers: { Authorization: `Bearer ${accessToken}` },
-                    });
+        if (response.status !== 429 || attempt >= MAX_RATE_LIMIT_RETRIES) {
+            return response;
+        }
 
-                    if (response.ok) {
-                        genres.set(artistId, ((await response.json()) as SpotifyArtist).genres ?? []);
-                    }
-                } catch {
-                    // Genres only refine the ordering, so a failed lookup is not fatal.
-                }
-            }),
-        );
+        const retryAfterSeconds = Number(response.headers.get("Retry-After")) || 1;
+
+        await new Promise((resolve) => setTimeout(resolve, retryAfterSeconds * 1000));
     }
-
-    return genres;
 };
 
-const fetchAlbumTracks = async (albumId: string, accessToken: string): Promise<AlbumTracksPage["items"] | null> => {
+const fetchAlbumTracks = async (albumId: string, accessToken: string): Promise<AlbumTracksPage["items"]> => {
     const items: AlbumTracksPage["items"] = [];
     let nextUrl: string | null = `https://api.spotify.com/v1/albums/${encodeURIComponent(albumId)}/tracks?limit=${PAGE_SIZE}`;
 
-    try {
-        while (nextUrl) {
-            const response: Response = await fetch(nextUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
+    while (nextUrl) {
+        const response: Response = await fetchWithRetry(nextUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
 
-            if (!response.ok) {
-                return null;
-            }
-
-            const page = (await response.json()) as AlbumTracksPage;
-
-            items.push(...page.items);
-            nextUrl = page.next;
+        if (!response.ok) {
+            throw new Error(`Failed to load tracks for album ${albumId} (${response.status}).`);
         }
-    } catch {
-        return null;
+
+        const page = (await response.json()) as AlbumTracksPage;
+
+        items.push(...page.items);
+        nextUrl = page.next;
     }
 
     return items;
@@ -113,11 +94,11 @@ const expandToFullAlbums = async (sortedTracks: SpotifyTrack[], accessToken: str
 
     const albumTracks: (AlbumTracksPage["items"] | null)[] = [];
 
-    for (let start = 0; start < sources.length; start += ARTIST_FETCH_CONCURRENCY) {
+    for (let start = 0; start < sources.length; start += ALBUM_FETCH_CONCURRENCY) {
         albumTracks.push(
             ...(await Promise.all(
                 sources
-                    .slice(start, start + ARTIST_FETCH_CONCURRENCY)
+                    .slice(start, start + ALBUM_FETCH_CONCURRENCY)
                     .map((source) => (source.album.id ? fetchAlbumTracks(source.album.id, accessToken) : null)),
             )),
         );
@@ -129,7 +110,6 @@ const expandToFullAlbums = async (sortedTracks: SpotifyTrack[], accessToken: str
             albumName: source.album.name,
             albumType: source.album.album_type,
             totalTracks: source.album.total_tracks,
-            genres: source.genres ?? [],
         };
         const fetched = albumTracks[index];
 
@@ -150,14 +130,8 @@ const expandToFullAlbums = async (sortedTracks: SpotifyTrack[], accessToken: str
     });
 };
 
-// Singles first (fewest tracks first), then albums, then compilations; similar genres sit together within each group.
-const sortTracks = (tracks: SpotifyTrack[], artistGenres: Map<string, string[]>): SpotifyTrack[] => {
-    const genreKey = (track: SpotifyTrack) => {
-        const artistId = track.artists[0]?.id;
-
-        return (artistId && artistGenres.get(artistId)?.[0]) || "\uffff";
-    };
-
+// Singles first (fewest tracks first), then albums, then compilations.
+const sortTracks = (tracks: SpotifyTrack[]): SpotifyTrack[] => {
     return [...tracks].sort((a, b) => {
         const typeA = a.album.album_type ?? "";
         const typeB = b.album.album_type ?? "";
@@ -175,7 +149,7 @@ const sortTracks = (tracks: SpotifyTrack[], artistGenres: Map<string, string[]>)
             }
         }
 
-        return genreKey(a).localeCompare(genreKey(b)) || (a.album.id ?? a.album.name).localeCompare(b.album.id ?? b.album.name);
+        return (a.album.id ?? a.album.name).localeCompare(b.album.id ?? b.album.name);
     });
 };
 
@@ -235,12 +209,7 @@ export const useHandleReleaseRadar = () => {
                     nextUrl = page.next;
                 }
 
-                const artistIds = [...new Set(loadedTracks.map((track) => track.artists[0]?.id).filter((id): id is string => Boolean(id)))];
-                const artistGenres = await fetchArtistGenres(artistIds, accessToken);
-                const sortedTracks = sortTracks(
-                    loadedTracks.map((track) => ({ ...track, genres: artistGenres.get(track.artists[0]?.id ?? "") ?? [] })),
-                    artistGenres,
-                );
+                const sortedTracks = sortTracks(loadedTracks);
 
                 const nextExpandedTracks = await expandToFullAlbums(sortedTracks, accessToken);
 
@@ -287,10 +256,10 @@ export const useHandleReleaseRadar = () => {
                     throw new Error(created.error?.message ?? "Failed to create playlist.");
                 }
 
-                const uris = expandedTracks.map((track) => track.uri);
+                const uris = [...new Set(expandedTracks.map((track) => track.uri))];
 
                 for (let start = 0; start < uris.length; start += ADD_ITEMS_MAX_URIS) {
-                    const addResponse = await fetch(`https://api.spotify.com/v1/playlists/${encodeURIComponent(created.id)}/items`, {
+                    const addResponse = await fetchWithRetry(`https://api.spotify.com/v1/playlists/${encodeURIComponent(created.id)}/items`, {
                         method: "POST",
                         headers,
                         body: JSON.stringify({ uris: uris.slice(start, start + ADD_ITEMS_MAX_URIS) }),
