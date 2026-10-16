@@ -8,6 +8,8 @@ export interface SpotifyTrack {
     id: string | null;
     name: string;
     uri: string;
+    track_number?: number;
+    disc_number?: number;
     artists: { id: string | null; name: string }[];
     album: { id: string | null; name: string; release_date?: string; album_type?: string; total_tracks?: number };
 }
@@ -30,7 +32,7 @@ interface AlbumTracksPage {
 }
 
 const ALBUM_TYPE_ORDER: Record<string, number> = { single: 0, album: 1, compilation: 2 };
-const ALBUM_FETCH_CONCURRENCY = 5;
+const ALBUM_FETCH_CONCURRENCY = 3;
 
 interface PlaylistItemsPage {
     items: { item?: SpotifyTrack | null; track?: SpotifyTrack | null }[];
@@ -76,9 +78,31 @@ const fetchAlbumTracks = async (albumId: string, accessToken: string): Promise<A
     return items;
 };
 
+// The API has no batch endpoint for album tracks, so an album is only fetched when the playlist doesn't already hold all of its tracks.
+const getCompleteAlbumFromPlaylist = (source: SpotifyTrack, tracksByAlbum: Map<string, SpotifyTrack[]>): AlbumTracksPage["items"] | null => {
+    const albumTracks = source.album.id ? tracksByAlbum.get(source.album.id) : undefined;
+    const uniqueTracks = albumTracks ? [...new Map(albumTracks.map((track) => [track.uri, track])).values()] : [];
+
+    if (!source.album.total_tracks || uniqueTracks.length < source.album.total_tracks) {
+        return null;
+    }
+
+    return uniqueTracks
+        .sort((a, b) => (a.disc_number ?? 1) - (b.disc_number ?? 1) || (a.track_number ?? 0) - (b.track_number ?? 0))
+        .map((track) => ({ uri: track.uri, name: track.name, track_number: track.track_number ?? 0, artists: track.artists }));
+};
+
 // Each album is expanded once, at the position of its first track in the sorted list.
 const expandToFullAlbums = async (sortedTracks: SpotifyTrack[], accessToken: string): Promise<ExpandedTrack[]> => {
     const playlistUris = new Set(sortedTracks.map((track) => track.uri));
+    const tracksByAlbum = new Map<string, SpotifyTrack[]>();
+
+    for (const track of sortedTracks) {
+        if (track.album.id) {
+            tracksByAlbum.set(track.album.id, [...(tracksByAlbum.get(track.album.id) ?? []), track]);
+        }
+    }
+
     const seenAlbums = new Set<string>();
     const sources = sortedTracks.filter((track) => {
         const albumKey = track.album.id ?? track.uri;
@@ -92,16 +116,16 @@ const expandToFullAlbums = async (sortedTracks: SpotifyTrack[], accessToken: str
         return true;
     });
 
-    const albumTracks: (AlbumTracksPage["items"] | null)[] = [];
+    const albumTracks: (AlbumTracksPage["items"] | null)[] = sources.map((source) => getCompleteAlbumFromPlaylist(source, tracksByAlbum));
+    const toFetch = sources.map((source, index) => index).filter((index) => !albumTracks[index] && sources[index].album.id);
 
-    for (let start = 0; start < sources.length; start += ALBUM_FETCH_CONCURRENCY) {
-        albumTracks.push(
-            ...(await Promise.all(
-                sources
-                    .slice(start, start + ALBUM_FETCH_CONCURRENCY)
-                    .map((source) => (source.album.id ? fetchAlbumTracks(source.album.id, accessToken) : null)),
-            )),
-        );
+    for (let start = 0; start < toFetch.length; start += ALBUM_FETCH_CONCURRENCY) {
+        const batch = toFetch.slice(start, start + ALBUM_FETCH_CONCURRENCY);
+        const results = await Promise.all(batch.map((index) => fetchAlbumTracks(sources[index].album.id as string, accessToken)));
+
+        batch.forEach((index, position) => {
+            albumTracks[index] = results[position];
+        });
     }
 
     return sources.flatMap((source, index): ExpandedTrack[] => {
